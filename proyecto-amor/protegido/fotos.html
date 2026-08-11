@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestras fotos 📷</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/websocket.js"></script>
+</head>
+<body class="pagina-fotos">
+
+<nav class="menu">
+    <a href="/">Inicio</a>
+    <a href="/fotos.html" class="activo">Fotos 📷</a>
+    <a href="/cita.html">Agendar cita 📅</a>
+    <a href="/chat.html">Chat 💬</a>
+    <a href="#" onclick="cerrarSesion(); return false;" style="opacity:0.7;">Salir</a>
+</nav>
+
+<div class="hearts"></div>
+
+<div class="galeria" id="galeria">
+    <p class="vacio">Cargando fotos...</p>
+</div>
+
+<!-- Vista ampliada: la foto completa, sin recortar, adaptada a la pantalla -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-cerrar" aria-label="Cerrar">&times;</button>
+    <img id="lightboxImg" src="" alt="Foto ampliada">
+</div>
+
+<script>
+    async function cerrarSesion() {
+        await fetch("/api/logout-usuario", { method: "POST" });
+        window.location.href = "/acceso.html";
+    }
+
+    // Si la foto viene de Cloudinary, le pedimos el tamaño justo que se va a
+    // mostrar (en vez de mandar la original de 4000px y que el navegador la
+    // achique, o mandar una chiquita y que el navegador la estire). Esto es
+    // lo que evita la pérdida de calidad y el peso innecesario.
+    // Si la URL no es de Cloudinary (ej. un link pegado a mano), se usa tal cual.
+    function urlOptimizada(url, anchoMax) {
+        if (!url || !url.includes("/upload/")) return url;
+        return url.replace("/upload/", `/upload/w_${anchoMax},c_limit,q_auto,f_auto/`);
+    }
+
+    async function cargarFotos() {
+        const galeria = document.getElementById("galeria");
+        try {
+            const respuesta = await fetch("/api/fotos");
+            const fotos = await respuesta.json();
+
+            if (fotos.length === 0) {
+                galeria.innerHTML = '<p class="vacio">Todavía no hay fotos aquí 💕</p>';
+                return;
+            }
+
+            galeria.innerHTML = "";
+            fotos.forEach((foto) => {
+                const div = document.createElement("div");
+                div.classList.add("foto-item");
+
+                const img = document.createElement("img");
+                // Miniatura: nos alcanza con ~600px de ancho para verse nítida
+                // en cualquier columna del grid, sin pesar de más.
+                img.src = urlOptimizada(foto.url, 600);
+                img.alt = foto.mensaje || "Nuestra foto";
+                img.loading = "lazy";
+                img.addEventListener("click", () => abrirLightbox(foto.url));
+                div.appendChild(img);
+
+                if (foto.mensaje) {
+                    const p = document.createElement("p");
+                    p.textContent = foto.mensaje;
+                    div.appendChild(p);
+                }
+
+                galeria.appendChild(div);
+            });
+        } catch (error) {
+            galeria.innerHTML = '<p class="vacio">No se pudieron cargar las fotos 😢</p>';
+        }
+    }
+
+    cargarFotos();
+
+    // ---- Auto-refresco por WebSocket ----
+    // Cuando el servidor avisa que se agregó/editó/borró una foto, la
+    // galería se vuelve a pedir sola, sin que tengas que recargar la página.
+    conectarWebSocket((datos) => {
+        if (datos.tipo === "fotos") cargarFotos();
+    });
+
+    // ---- Lightbox: click en una foto la abre completa, sin recortar ----
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightboxImg");
+
+    function abrirLightbox(urlOriginal) {
+        // Aquí sí pedimos una versión más grande, pensada para pantalla completa.
+        lightboxImg.src = urlOptimizada(urlOriginal, 1600);
+        lightbox.classList.add("abierto");
+        document.body.style.overflow = "hidden";
+    }
+
+    function cerrarLightbox() {
+        lightbox.classList.remove("abierto");
+        lightboxImg.src = "";
+        document.body.style.overflow = "";
+    }
+
+    lightbox.addEventListener("click", cerrarLightbox);
+    document.querySelector(".lightbox-cerrar").addEventListener("click", (e) => {
+        e.stopPropagation();
+        cerrarLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") cerrarLightbox();
+    });
+
+    // Aplica el mismo fondo personalizado que el resto del sitio (si hay uno configurado)
+    fetch("/api/config")
+        .then((r) => r.json())
+        .then((config) => {
+            if (config.fondo_url) {
+                document.documentElement.style.setProperty("--fondo-imagen", `url("${config.fondo_url}")`);
+            }
+        })
+        .catch(() => {});
+
+    // Corazones flotantes (igual que en la página principal)
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>

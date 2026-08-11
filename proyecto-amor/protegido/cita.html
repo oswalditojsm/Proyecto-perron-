@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar una cita 📅</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="menu">
+    <a href="/">Inicio</a>
+    <a href="/fotos.html">Fotos 📷</a>
+    <a href="/cita.html" class="activo">Agendar citas para ambos 📅</a>
+    <a href="/chat.html">Chat 💬</a>
+    <a href="#" onclick="cerrarSesion(); return false;" style="opacity:0.7;">Salir</a>
+</nav>
+
+<div class="hearts"></div>
+
+<div class="card">
+    <h1>Agenda nuestra próxima cita 💕</h1>
+    <p>Elige el día, la hora, y cuéntame qué te gustaría que hagamos</p>
+
+    <form class="form-cita" id="formCita">
+        <div>
+            <label for="fecha">Día</label>
+            <input type="date" id="fecha" required>
+        </div>
+        <div>
+            <label for="hora">Hora</label>
+            <input type="time" id="hora" required>
+        </div>
+        <div>
+            <label for="mensaje">¿Qué quieres que hagamos?</label>
+            <textarea id="mensaje" placeholder="Ej: ver una peli y cenar algo rico..."></textarea>
+        </div>
+        <button type="submit">Agendar 💌</button>
+    </form>
+
+    <p class="confirmacion" id="confirmacion" style="display:none;"></p>
+</div>
+
+<script>
+    async function cerrarSesion() {
+        await fetch("/api/logout-usuario", { method: "POST" });
+        window.location.href = "/acceso.html";
+    }
+
+    const form = document.getElementById("formCita");
+    const confirmacion = document.getElementById("confirmacion");
+
+    form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+
+        const fecha = document.getElementById("fecha").value;
+        const hora = document.getElementById("hora").value;
+        const mensaje = document.getElementById("mensaje").value;
+
+        try {
+            const respuesta = await fetch("/api/citas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fecha, hora, mensaje })
+            });
+
+            if (!respuesta.ok) throw new Error("Error al guardar");
+
+            form.reset();
+            confirmacion.textContent = "¡Cita agendada! 💖 Ya quiero que llegue ese día.";
+            confirmacion.style.display = "block";
+        } catch (error) {
+            confirmacion.textContent = "Algo salió mal, ¿lo intentas de nuevo? 😢";
+            confirmacion.style.display = "block";
+        }
+    });
+
+    // Aplica el mismo fondo personalizado que el resto del sitio (si hay uno configurado)
+    fetch("/api/config")
+        .then((r) => r.json())
+        .then((config) => {
+            if (config.fondo_url) {
+                document.documentElement.style.setProperty("--fondo-imagen", `url("${config.fondo_url}")`);
+            }
+        })
+        .catch(() => {});
+
+    // Corazones flotantes
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>

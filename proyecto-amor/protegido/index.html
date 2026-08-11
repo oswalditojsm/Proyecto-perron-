@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para mi amor 💖</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/websocket.js"></script>
+</head>
+<body>
+
+<!-- Menú de navegación -->
+<nav class="menu">
+    <a href="/" class="activo">Inicio</a>
+    <a href="/fotos.html">Fotos 📷</a>
+    <a href="/cita.html">Agendar cita 📅</a>
+    <a href="/chat.html">Chat 💬</a>
+    <a href="#" onclick="cerrarSesion(); return false;" style="opacity:0.7;">Salir</a>
+</nav>
+
+<!-- Corazones flotantes -->
+<div class="hearts"></div>
+<!-- Destellos de fondo -->
+<div class="sparkles"></div>
+
+<div class="card">
+    <div class="contador" id="contador" style="display:none;"></div>
+    <div class="proxima-cita" id="proximaCita" style="display:none;"></div>
+
+    <h1>Buenos días, mi amor 💕</h1>
+    <p id="mensaje">Cargando...</p>
+    <button onclick="nuevoMensaje()">Otro mensajito 💌</button>
+</div>
+
+<script>
+    async function cerrarSesion() {
+        await fetch("/api/logout-usuario", { method: "POST" });
+        window.location.href = "/acceso.html";
+    }
+
+    const mensajeEl = document.getElementById("mensaje");
+
+    // Efecto "máquina de escribir": escribe el texto letra por letra
+    function escribirTexto(texto) {
+        mensajeEl.textContent = "";
+        let i = 0;
+        const intervalo = setInterval(() => {
+            mensajeEl.textContent += texto[i];
+            i++;
+            if (i >= texto.length) clearInterval(intervalo);
+        }, 40);
+    }
+
+    // Pide un mensaje al azar al servidor (antes esto era un arreglo local)
+    async function nuevoMensaje() {
+        mensajeEl.classList.add("fade-out");
+        try {
+            const respuesta = await fetch("/api/mensajes/aleatorio");
+            const datos = await respuesta.json();
+            setTimeout(() => {
+                mensajeEl.classList.remove("fade-out");
+                escribirTexto(datos.texto);
+            }, 200);
+        } catch (error) {
+            console.error("No se pudo conectar con el servidor:", error);
+            mensajeEl.classList.remove("fade-out");
+            escribirTexto("No pude cargar el mensaje 😢 ¿está el servidor prendido?");
+        }
+    }
+
+    // Mensaje inicial al cargar la página
+    nuevoMensaje();
+
+    // ---- Config: fondo personalizado + contador de días juntos ----
+    async function cargarConfig() {
+        try {
+            const respuesta = await fetch("/api/config");
+            const config = await respuesta.json();
+
+            if (config.fondo_url) {
+                document.documentElement.style.setProperty("--fondo-imagen", `url("${config.fondo_url}")`);
+            }
+
+            if (config.fecha_inicio) {
+                const inicio = new Date(config.fecha_inicio + "T00:00:00");
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                const dias = Math.floor((hoy - inicio) / 86400000) + 1;
+
+                if (dias > 0) {
+                    const contadorEl = document.getElementById("contador");
+                    contadorEl.innerHTML = `Llevamos <strong>${dias}</strong> día${dias === 1 ? "" : "s"} juntos 💕`;
+                    contadorEl.style.display = "inline-block";
+                }
+            }
+        } catch (error) {
+            console.error("No se pudo cargar la configuración:", error);
+        }
+    }
+    cargarConfig();
+
+    // ---- Próxima cita agendada ----
+    async function cargarProximaCita() {
+        try {
+            const respuesta = await fetch("/api/citas/proxima");
+            const cita = await respuesta.json();
+            if (!cita) return;
+
+            const fecha = new Date(cita.fecha + "T00:00:00").toLocaleDateString("es-ES", {
+                weekday: "long", day: "numeric", month: "long"
+            });
+
+            const proximaEl = document.getElementById("proximaCita");
+            proximaEl.innerHTML = `📅 Nuestra próxima cita: <strong>${fecha}</strong> a las ${cita.hora}` +
+                (cita.mensaje ? `<br>${cita.mensaje}` : "");
+            proximaEl.style.display = "block";
+        } catch (error) {
+            console.error("No se pudo cargar la próxima cita:", error);
+        }
+    }
+    cargarProximaCita();
+
+    // ---- Auto-refresco por WebSocket ----
+    // El servidor avisa cuando cambia algo; cada tipo de cambio recarga
+    // solo la parte de la página que le corresponde.
+    conectarWebSocket((datos) => {
+        if (datos.tipo === "mensajes") nuevoMensaje();
+        if (datos.tipo === "citas") cargarProximaCita();
+        if (datos.tipo === "ajustes") cargarConfig();
+    });
+
+    // ---- Corazones dinámicos ----
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 300);
+
+    // ---- Destellos ----
+    const sparklesContainer = document.querySelector(".sparkles");
+
+    function createSparkle() {
+        const sparkle = document.createElement("div");
+        sparkle.classList.add("sparkle");
+        sparkle.style.left = Math.random() * 100 + "vw";
+        sparkle.style.top = Math.random() * 100 + "vh";
+        sparkle.style.animationDuration = (Math.random() * 2 + 1.5) + "s";
+
+        sparklesContainer.appendChild(sparkle);
+        setTimeout(() => sparkle.remove(), 3500);
+    }
+    setInterval(createSparkle, 400);
+</script>
+
+</body>
+</html>

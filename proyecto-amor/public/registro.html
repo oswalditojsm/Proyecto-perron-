@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Crear cuenta 💕</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="sin-menu">
+
+<div class="hearts"></div>
+
+<div class="card login-card">
+    <h1>Crear cuenta 💕</h1>
+    <p>Después de registrarte, tengo que aprobar tu cuenta antes de que puedas entrar</p>
+
+    <form id="formRegistro">
+        <input type="text" id="usuario" placeholder="Elige un usuario" required minlength="3" autocomplete="username">
+        <input type="password" id="password" placeholder="Elige una contraseña" required minlength="4" autocomplete="new-password">
+        <button type="submit">Registrarme</button>
+    </form>
+
+    <p class="error" id="error" style="display:none;"></p>
+    <p class="exito" id="exito" style="display:none; color:#b7ffcf;"></p>
+
+    <p style="margin-top:18px; font-size:14px;">
+        ¿Ya tienes cuenta? <a href="/acceso.html">Inicia sesión</a>
+    </p>
+</div>
+
+<script>
+    const form = document.getElementById("formRegistro");
+    const errorEl = document.getElementById("error");
+    const exitoEl = document.getElementById("exito");
+
+    form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        errorEl.style.display = "none";
+        exitoEl.style.display = "none";
+
+        const usuario = document.getElementById("usuario").value.trim();
+        const password = document.getElementById("password").value;
+
+        try {
+            const respuesta = await fetch("/api/registro", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ usuario, password })
+            });
+            const datos = await respuesta.json();
+
+            if (respuesta.ok) {
+                form.style.display = "none";
+                exitoEl.textContent = "¡Listo! Tu cuenta quedó pendiente de aprobación 💕. En cuanto te acepten, ya puedes iniciar sesión.";
+                exitoEl.style.display = "block";
+            } else {
+                errorEl.textContent = datos.error || "No se pudo registrar";
+                errorEl.style.display = "block";
+            }
+        } catch (error) {
+            errorEl.textContent = "Error de conexión, intenta de nuevo";
+            errorEl.style.display = "block";
+        }
+    });
+
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>

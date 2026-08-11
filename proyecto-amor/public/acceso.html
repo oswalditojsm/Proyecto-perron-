@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Entrar 💕</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="sin-menu">
+
+<div class="hearts"></div>
+
+<div class="card login-card">
+    <h1>Bienvenida 💕</h1>
+    <p>Ingresa con tu cuenta para entrar</p>
+
+    <form id="formAcceso">
+        <input type="text" id="usuario" placeholder="Usuario" required autocomplete="username">
+        <input type="password" id="password" placeholder="Contraseña" required autocomplete="current-password">
+        <button type="submit">Entrar</button>
+    </form>
+
+    <p class="error" id="error" style="display:none;"></p>
+    <p style="margin-top:18px; font-size:14px;">
+        ¿No tienes cuenta? <a href="/registro.html">Regístrate aquí</a>
+    </p>
+</div>
+
+<script>
+    const form = document.getElementById("formAcceso");
+    const errorEl = document.getElementById("error");
+
+    form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        errorEl.style.display = "none";
+
+        const usuario = document.getElementById("usuario").value.trim();
+        const password = document.getElementById("password").value;
+
+        try {
+            const respuesta = await fetch("/api/login-usuario", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ usuario, password })
+            });
+            const datos = await respuesta.json();
+
+            if (respuesta.ok) {
+                window.location.href = "/";
+            } else {
+                errorEl.textContent = datos.error || "No se pudo entrar";
+                errorEl.style.display = "block";
+            }
+        } catch (error) {
+            errorEl.textContent = "Error de conexión, intenta de nuevo";
+            errorEl.style.display = "block";
+        }
+    });
+
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>
