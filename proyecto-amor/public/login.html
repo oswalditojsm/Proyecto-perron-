@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso privado 🔒</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Instalable como app: ícono del panel de administración -->
+    <link rel="manifest" href="/manifest-admin.json">
+    <meta name="theme-color" content="#c81e3a">
+    <link rel="apple-touch-icon" href="/iconos/admin-apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Admin 💕">
+    <script src="/pwa.js"></script>
+</head>
+<body class="sin-menu">
+
+<div class="hearts"></div>
+
+<div class="login-card">
+    <h1>Acceso privado 🔒</h1>
+    <p>Esta sección es solo para administrar el sitio.</p>
+
+    <form id="formLogin">
+        <input type="password" id="password" placeholder="Contraseña" autofocus required>
+        <button type="submit">Entrar</button>
+    </form>
+    <p class="error" id="error"></p>
+</div>
+
+<script>
+    const form = document.getElementById("formLogin");
+    const errorEl = document.getElementById("error");
+
+    form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const password = document.getElementById("password").value;
+        errorEl.textContent = "";
+
+        try {
+            const respuesta = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+
+            if (respuesta.ok) {
+                window.location.href = "/admin";
+            } else {
+                const datos = await respuesta.json().catch(() => ({}));
+                errorEl.textContent = datos.error || "Contraseña incorrecta";
+            }
+        } catch (error) {
+            errorEl.textContent = "No se pudo conectar con el servidor 😢";
+        }
+    });
+
+    // Corazones flotantes (igual que el resto del sitio)
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>
