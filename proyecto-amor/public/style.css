@@ -1,0 +1,762 @@
+:root {
+    --rosa-claro: #ff8fa3;
+    --rosa: #ff6b81;
+    --rosa-fuerte: #ff4757;
+    --rosa-pastel: #ffb6c1;
+    --rosa-fondo: #fff0f3;
+    --gris-texto: #333;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    overflow-x: hidden;
+    overflow-y: auto; /* si el contenido no cabe (ej. teclado abierto en celular), se puede hacer scroll en vez de cortarse */
+    min-height: 100vh;
+    min-height: 100dvh; /* en celulares evita el "salto" cuando aparece/desaparece la barra del navegador */
+    position: relative;
+    box-sizing: border-box;
+
+    /* Fondo con imagen + degradado animado encima */
+    background:
+        linear-gradient(-45deg, rgba(255,107,129,0.35), rgba(255,71,87,0.25), rgba(0,0,0,0.4), rgba(255,143,163,0.3)),
+        var(--fondo-imagen, url("https://picsum.photos/800/1200?blur=3")) no-repeat center center/cover;
+    background-size: 400% 400%, cover;
+    background-attachment: fixed, fixed;
+    animation: gradienteAnimado 12s ease infinite;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+    padding: 90px 16px 30px; /* deja espacio para el menú fijo de arriba en todas las páginas */
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Páginas sin menú de navegación (como el login) no necesitan el espacio reservado arriba */
+body.sin-menu {
+    padding-top: 30px;
+}
+
+/* Degradado en movimiento */
+@keyframes gradienteAnimado {
+    0%   { background-position: 0% 50%, center; }
+    50%  { background-position: 100% 50%, center; }
+    100% { background-position: 0% 50%, center; }
+}
+
+/* Menú de navegación */
+.menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px 0;
+    z-index: 10;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(6px);
+}
+
+.menu a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: 0.3s;
+    background: rgba(255,255,255,0.1);
+}
+
+.menu a:hover,
+.menu a.activo {
+    background: #ff6b81;
+}
+
+/* Tarjeta */
+.card {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 30px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: fadeIn 2s ease;
+    position: relative;
+    z-index: 2;
+    max-width: 90vw;
+}
+
+h1 {
+    font-size: 28px;
+}
+
+p {
+    font-size: 18px;
+    margin-top: 20px;
+    min-height: 27px; /* evita que la tarjeta "salte" mientras se escribe el texto */
+    transition: opacity 0.2s ease;
+}
+
+/* Efecto de desvanecido al cambiar de mensaje */
+p.fade-out {
+    opacity: 0;
+}
+
+/* Botón */
+button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #ff6b81;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    animation: pulso 2s ease-in-out infinite;
+}
+
+button:hover {
+    background: #ff4757;
+    transform: scale(1.1);
+    animation: none;
+}
+
+/* Pulso suave para invitar al clic */
+@keyframes pulso {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 129, 0.6); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 107, 129, 0); }
+}
+
+/* Animación entrada */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Corazones */
+.hearts {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none; /* son solo decorativos: nunca deben "robar" toques o scroll al contenido de encima */
+}
+
+.heart {
+    --heart-color: #ff6b81;
+    position: absolute;
+    background: var(--heart-color);
+    transform: rotate(45deg);
+    animation: float linear;
+}
+
+/* Forma del corazón (usa el mismo tamaño que .heart vía CSS variables) */
+.heart::before,
+.heart::after {
+    content: "";
+    width: 100%;
+    height: 100%;
+    background: var(--heart-color);
+    border-radius: 50%;
+    position: absolute;
+}
+
+.heart::before {
+    top: -50%;
+    left: 0;
+}
+
+.heart::after {
+    left: -50%;
+    top: 0;
+}
+
+/* Movimiento + rotación ligera + parpadeo de opacidad */
+@keyframes float {
+    0% {
+        transform: translateY(100vh) rotate(45deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-10vh) rotate(405deg);
+        opacity: 0;
+    }
+}
+
+/* Destellos */
+.sparkles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 6px 2px rgba(255,255,255,0.8);
+    animation: brillar ease-in-out;
+}
+
+@keyframes brillar {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* ---- Galería de fotos ---- */
+.pagina-fotos {
+    overflow-y: auto;
+    height: 100vh;
+    height: 100dvh;
+    padding: 90px 20px 40px;
+    box-sizing: border-box;
+    align-items: flex-start;
+}
+
+.galeria {
+    /* Layout tipo "masonry": cada foto conserva su proporción natural,     */
+    /* nunca se recorta ni se estira. El número de columnas se adapta       */
+    /* al ancho de pantalla disponible (ver media queries más abajo).       */
+    column-count: 1;
+    column-gap: 20px;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+@media (min-width: 520px) {
+    .galeria { column-count: 2; }
+}
+
+@media (min-width: 900px) {
+    .galeria { column-count: 3; }
+}
+
+.foto-item {
+    background: rgba(0,0,0,0.5);
+    border-radius: 16px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    animation: fadeIn 0.6s ease;
+    /* Evita que una foto se parta entre dos columnas del masonry */
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    margin: 0 0 20px;
+    display: inline-block;
+    width: 100%;
+}
+
+.foto-item img {
+    width: 100%;
+    height: auto;
+    display: block;
+    cursor: zoom-in;
+    /* No agranda una foto más allá de su tamaño real (evita pixelado) */
+    max-width: 100%;
+}
+
+.foto-item p {
+    margin: 0;
+    padding: 14px;
+    font-size: 15px;
+}
+
+.vacio {
+    opacity: 0.8;
+    font-size: 16px;
+}
+
+/* ---- Banner para activar notificaciones ---- */
+.banner-notificaciones {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 20;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(10px);
+    color: white;
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    animation: fadeIn 0.3s ease;
+    font-size: 14px;
+    text-align: left;
+}
+
+.banner-notificaciones-botones {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.banner-notificaciones button {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.banner-notificaciones .activar {
+    background: var(--rosa);
+    color: white;
+}
+
+.banner-notificaciones .activar:hover {
+    background: var(--rosa-fuerte);
+}
+
+.banner-notificaciones .ahora-no {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+@media (max-width: 480px) {
+    .banner-notificaciones {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    .banner-notificaciones-botones {
+        margin-left: 0;
+        justify-content: center;
+    }
+}
+
+/* ---- Chat ---- */
+.pagina-chat {
+    height: 100vh;
+    height: 100dvh;
+    padding: 90px 0 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+.chat-contenedor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+    min-height: 0; /* deja que el hijo con scroll funcione dentro de un flex */
+    position: relative;
+    z-index: 2;
+}
+
+.chat-mensajes {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 4px 16px;
+    text-align: left;
+}
+
+.burbuja {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    color: white;
+    word-wrap: break-word;
+    animation: fadeIn 0.3s ease;
+}
+
+.burbuja.propia {
+    align-self: flex-end;
+    background: var(--rosa);
+    border-bottom-right-radius: 4px;
+}
+
+.burbuja.otra {
+    align-self: flex-start;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    border-bottom-left-radius: 4px;
+}
+
+.burbuja .autor {
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0.85;
+    margin-bottom: 3px;
+}
+
+.burbuja .texto-mensaje {
+    font-size: 16px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.burbuja img {
+    max-width: 100%;
+    max-height: 45vh;
+    width: auto;
+    height: auto;
+    border-radius: 10px;
+    display: block;
+    margin-top: 4px;
+    cursor: zoom-in;
+    object-fit: contain;
+}
+
+.burbuja .hora {
+    font-size: 10px;
+    opacity: 0.65;
+    margin-top: 4px;
+    text-align: right;
+}
+
+.chat-estado {
+    min-height: 0;
+    font-size: 13px;
+    opacity: 0.85;
+    margin: 0 4px;
+    text-align: center;
+}
+
+.chat-input-barra {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 4px 18px;
+}
+
+.chat-input-barra button {
+    background: var(--rosa);
+    border: none;
+    color: white;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.chat-input-barra button:hover {
+    background: var(--rosa-fuerte);
+}
+
+.chat-input-barra button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+#botonImagen {
+    background: rgba(255,255,255,0.15);
+    padding: 10px 14px;
+    font-size: 18px;
+}
+
+.chat-input-barra textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 16px;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    max-height: 120px;
+    line-height: 1.3;
+}
+
+.chat-input-barra textarea:focus {
+    outline: 2px solid var(--rosa);
+}
+
+@media (max-width: 480px) {
+    .burbuja { max-width: 88%; }
+}
+
+/* ---- Lightbox: ver la foto completa, adaptada a la pantalla ---- */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 24px;
+    box-sizing: border-box;
+    cursor: zoom-out;
+}
+
+.lightbox.abierto {
+    display: flex;
+}
+
+.lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+.lightbox-cerrar {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    font-size: 32px;
+    color: #fff;
+    background: rgba(0,0,0,0.4);
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 1000;
+}
+
+/* ---- Formulario de cita ---- */
+.form-cita {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: left;
+    margin-top: 15px;
+}
+
+.form-cita label {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.form-cita input,
+.form-cita textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-family: inherit;
+}
+
+.form-cita textarea {
+    resize: vertical;
+    min-height: 70px;
+}
+
+.confirmacion {
+    margin-top: 15px;
+    font-size: 16px;
+    animation: fadeIn 0.5s ease;
+}
+
+/* ---- Contador de días juntos ---- */
+.contador {
+    display: inline-block;
+    margin: 0 0 18px;
+    padding: 8px 18px;
+    border-radius: 30px;
+    background: rgba(255,255,255,0.15);
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+}
+
+.contador strong {
+    font-size: 16px;
+    color: #fff0f3;
+}
+
+/* ---- Aviso de próxima cita ---- */
+.proxima-cita {
+    margin: 0 0 18px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(255,107,129,0.25);
+    border: 1px solid rgba(255,255,255,0.25);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* ---- Página de login ---- */
+.login-card {
+    background: rgba(0,0,0,0.5);
+    padding: 36px 30px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 320px;
+    width: 90vw;
+    position: relative;
+    z-index: 2;
+}
+
+.login-card h1 {
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+.login-card p {
+    font-size: 14px;
+    opacity: 0.85;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.login-card input[type="password"],
+.login-card input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.login-card .error {
+    color: #ffd7dd;
+    font-size: 13px;
+    min-height: 18px;
+    margin-top: 12px;
+}
+
+/* =========================================================
+   RESPONSIVE: ajustes por tamaño de pantalla
+   ========================================================= */
+
+/* Celulares pequeños */
+@media (max-width: 420px) {
+    .menu {
+        gap: 6px;
+        padding: 10px 6px;
+        flex-wrap: wrap;
+    }
+    .menu a {
+        padding: 7px 12px;
+        font-size: 13px;
+    }
+    body {
+        padding-top: 100px; /* el menú ocupa más alto al hacer wrap, le damos más espacio */
+    }
+    body.sin-menu {
+        padding-top: 30px; /* el login no tiene menú, no necesita ese espacio extra */
+    }
+    .pagina-fotos {
+        padding-top: 100px;
+    }
+    .card, .login-card {
+        padding: 22px 18px;
+    }
+    h1 {
+        font-size: 22px;
+    }
+    p {
+        font-size: 16px;
+    }
+    .contador, .proxima-cita {
+        font-size: 13px;
+    }
+}
+
+/* Tablets */
+@media (min-width: 421px) and (max-width: 768px) {
+    .card {
+        padding: 26px 22px;
+    }
+    h1 {
+        font-size: 25px;
+    }
+}
+
+/* Laptops y pantallas de escritorio: más espacio, todo un poco más grande */
+@media (min-width: 1024px) {
+    .card {
+        max-width: 520px;
+        padding: 40px 46px;
+    }
+    h1 {
+        font-size: 32px;
+    }
+    p {
+        font-size: 19px;
+    }
+    .menu a {
+        font-size: 15px;
+        padding: 9px 18px;
+    }
+}
+
+/* Pantallas muy grandes (monitores anchos, TVs) */
+@media (min-width: 1600px) {
+    .card {
+        max-width: 600px;
+    }
+    h1 {
+        font-size: 36px;
+    }
+    .galeria {
+        max-width: 1200px;
+    }
+}
+
+/* Modo horizontal en celular: la pantalla es baja, priorizamos que quepa todo */
+@media (max-height: 480px) and (orientation: landscape) {
+    body {
+        padding-top: 70px;
+    }
+    body.sin-menu {
+        padding-top: 30px;
+    }
+    .menu {
+        padding: 8px 0;
+    }
+    .card {
+        padding: 18px 24px;
+    }
+    h1 {
+        font-size: 20px;
+    }
+    p {
+        margin-top: 12px;
+    }
+}

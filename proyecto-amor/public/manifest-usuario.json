@@ -1,0 +1,17 @@
+{
+    "name": "Para mi amor 💖",
+    "short_name": "Mi amor 💕",
+    "description": "Nuestro rincón privado",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#fff0f3",
+    "theme_color": "#ff6b81",
+    "icons": [
+        { "src": "/iconos/usuario-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/iconos/usuario-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/iconos/usuario-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+        { "src": "/iconos/usuario-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

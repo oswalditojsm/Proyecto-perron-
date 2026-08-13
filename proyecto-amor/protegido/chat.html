@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestro chat 💬</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest-usuario.json">
+    <meta name="theme-color" content="#ff6b81">
+    <link rel="apple-touch-icon" href="/iconos/usuario-apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi amor 💕">
+    <script src="/websocket.js"></script>
+    <script src="/pwa.js"></script>
+    <script src="/push.js"></script>
+</head>
+<body class="pagina-chat">
+
+<nav class="menu">
+    <a href="/">Inicio</a>
+    <a href="/fotos.html">Fotos 📷</a>
+    <a href="/cita.html">Agendar cita 📅</a>
+    <a href="/chat.html" class="activo">Chat 💬</a>
+    <a href="#" onclick="cerrarSesion(); return false;" style="opacity:0.7;">Salir</a>
+</nav>
+
+<div class="hearts"></div>
+
+<div class="chat-contenedor">
+    <div class="chat-mensajes" id="chatMensajes">
+        <p class="vacio">Cargando conversación...</p>
+    </div>
+
+    <p class="chat-estado" id="chatEstado"></p>
+
+    <form class="chat-input-barra" id="formChat">
+        <button type="button" id="botonImagen" title="Enviar una foto" aria-label="Enviar una foto">📷</button>
+        <input type="file" id="archivoImagen" accept="image/*" hidden>
+        <textarea id="textoChat" placeholder="Escribe algo bonito..." rows="1"></textarea>
+        <button type="submit" id="botonEnviar">Enviar 💌</button>
+    </form>
+</div>
+
+<!-- Vista ampliada de una foto enviada en el chat -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-cerrar" aria-label="Cerrar">&times;</button>
+    <img id="lightboxImg" src="" alt="Foto ampliada">
+</div>
+
+<script>
+    async function cerrarSesion() {
+        await fetch("/api/logout-usuario", { method: "POST" });
+        window.location.href = "/acceso.html";
+    }
+
+    // Si la foto viene de Cloudinary, pedimos el tamaño justo para no cargar
+    // de más ni perder calidad (mismo truco que en la galería de fotos).
+    function urlOptimizada(url, anchoMax) {
+        if (!url || !url.includes("/upload/")) return url;
+        return url.replace("/upload/", `/upload/w_${anchoMax},c_limit,q_auto,f_auto/`);
+    }
+
+    const contenedorMensajes = document.getElementById("chatMensajes");
+    const estado = document.getElementById("chatEstado");
+    const idsRenderizados = new Set();
+    let quienSoy = null; // { tipo: "admin" | "usuario", nombre: "..." }
+
+    function formatearHora(fechaIso) {
+        try {
+            const fecha = new Date(fechaIso.includes("Z") || fechaIso.includes("+") ? fechaIso : fechaIso + "Z");
+            return fecha.toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+        } catch {
+            return "";
+        }
+    }
+
+    function estaAlFinal() {
+        // Si ya estabas viendo lo más reciente, seguimos haciendo scroll
+        // automático. Si subiste a leer mensajes viejos, no te interrumpimos.
+        return contenedorMensajes.scrollHeight - contenedorMensajes.scrollTop - contenedorMensajes.clientHeight < 120;
+    }
+
+    function pintarMensaje(m) {
+        if (idsRenderizados.has(m.id)) return;
+        idsRenderizados.add(m.id);
+
+        const propia = quienSoy && m.autor_tipo === quienSoy.tipo && m.autor_nombre === quienSoy.nombre;
+        const burbuja = document.createElement("div");
+        burbuja.classList.add("burbuja", propia ? "propia" : "otra");
+
+        let html = "";
+        if (!propia) html += `<div class="autor">${m.autor_nombre}</div>`;
+        if (m.imagen_url) {
+            html += `<img src="${urlOptimizada(m.imagen_url, 500)}" alt="Foto enviada en el chat" loading="lazy" data-full="${m.imagen_url}">`;
+        }
+        if (m.texto) {
+            html += `<span class="texto-mensaje"></span>`;
+        }
+        html += `<div class="hora">${formatearHora(m.creado_en)}</div>`;
+        burbuja.innerHTML = html;
+
+        if (m.texto) {
+            burbuja.querySelector(".texto-mensaje").textContent = m.texto;
+        }
+
+        const img = burbuja.querySelector("img");
+        if (img) {
+            img.addEventListener("click", () => abrirLightbox(img.dataset.full));
+        }
+
+        contenedorMensajes.appendChild(burbuja);
+    }
+
+    async function cargarChat() {
+        try {
+            const [respAutor, respMensajes] = await Promise.all([
+                fetch("/api/quien-soy"),
+                fetch("/api/chat")
+            ]);
+            quienSoy = await respAutor.json();
+            const mensajes = await respMensajes.json();
+
+            contenedorMensajes.innerHTML = "";
+            idsRenderizados.clear();
+
+            if (mensajes.length === 0) {
+                contenedorMensajes.innerHTML = '<p class="vacio">Todavía no hay mensajes. ¡Escribe el primero! 💕</p>';
+            } else {
+                mensajes.forEach(pintarMensaje);
+            }
+            contenedorMensajes.scrollTop = contenedorMensajes.scrollHeight;
+        } catch (error) {
+            contenedorMensajes.innerHTML = '<p class="vacio">No se pudo cargar el chat 😢</p>';
+        }
+    }
+
+    cargarChat();
+
+    // ---- Tiempo real: cuando llega un mensaje nuevo (propio o de ella/él) ----
+    conectarWebSocket((datos) => {
+        if (datos.tipo === "chat" && datos.mensaje) {
+            const vacio = contenedorMensajes.querySelector(".vacio");
+            if (vacio) vacio.remove();
+            const debeBajar = estaAlFinal();
+            pintarMensaje(datos.mensaje);
+            if (debeBajar) contenedorMensajes.scrollTop = contenedorMensajes.scrollHeight;
+        }
+    });
+
+    // ---- Enviar texto ----
+    const form = document.getElementById("formChat");
+    const textarea = document.getElementById("textoChat");
+    const botonEnviar = document.getElementById("botonEnviar");
+
+    textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+    });
+
+    textarea.addEventListener("keydown", (evento) => {
+        if (evento.key === "Enter" && !evento.shiftKey) {
+            evento.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    form.addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const texto = textarea.value.trim();
+        if (!texto) return;
+
+        botonEnviar.disabled = true;
+        try {
+            const respuesta = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ texto })
+            });
+            if (!respuesta.ok) throw new Error();
+            textarea.value = "";
+            textarea.style.height = "auto";
+        } catch (error) {
+            estado.textContent = "No se pudo enviar, ¿lo intentas de nuevo? 😢";
+            setTimeout(() => (estado.textContent = ""), 3000);
+        } finally {
+            botonEnviar.disabled = false;
+        }
+    });
+
+    // ---- Enviar imagen ----
+    const botonImagen = document.getElementById("botonImagen");
+    const archivoImagen = document.getElementById("archivoImagen");
+
+    botonImagen.addEventListener("click", () => archivoImagen.click());
+
+    archivoImagen.addEventListener("change", async () => {
+        const archivo = archivoImagen.files[0];
+        if (!archivo) return;
+
+        const formData = new FormData();
+        formData.append("imagen", archivo);
+        formData.append("texto", textarea.value.trim());
+
+        estado.textContent = "Enviando foto...";
+        botonImagen.disabled = true;
+
+        try {
+            const respuesta = await fetch("/api/chat/imagen", { method: "POST", body: formData });
+            const datos = await respuesta.json();
+            if (!respuesta.ok) throw new Error(datos.error || "Error al subir");
+            textarea.value = "";
+            textarea.style.height = "auto";
+            estado.textContent = "";
+        } catch (error) {
+            estado.textContent = error.message || "No se pudo enviar la foto 😢";
+            setTimeout(() => (estado.textContent = ""), 3000);
+        } finally {
+            botonImagen.disabled = false;
+            archivoImagen.value = "";
+        }
+    });
+
+    // ---- Lightbox ----
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightboxImg");
+
+    function abrirLightbox(urlOriginal) {
+        lightboxImg.src = urlOptimizada(urlOriginal, 1600);
+        lightbox.classList.add("abierto");
+        document.body.style.overflow = "hidden";
+    }
+    function cerrarLightbox() {
+        lightbox.classList.remove("abierto");
+        lightboxImg.src = "";
+        document.body.style.overflow = "";
+    }
+    lightbox.addEventListener("click", cerrarLightbox);
+    document.querySelector(".lightbox-cerrar").addEventListener("click", (e) => {
+        e.stopPropagation();
+        cerrarLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") cerrarLightbox();
+    });
+
+    // Aplica el mismo fondo personalizado que el resto del sitio (si hay uno)
+    fetch("/api/config")
+        .then((r) => r.json())
+        .then((config) => {
+            if (config.fondo_url) {
+                document.documentElement.style.setProperty("--fondo-imagen", `url("${config.fondo_url}")`);
+            }
+        })
+        .catch(() => {});
+
+    // Corazones flotantes (mismo efecto del resto del sitio)
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 900);
+</script>
+
+</body>
+</html>
