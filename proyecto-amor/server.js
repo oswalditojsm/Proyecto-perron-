@@ -34,6 +34,7 @@ if (fs.existsSync(rutaEnv)) {
 
 const app = express();
 app.set('trust proxy', 1);
+//nada solo cambios
 const PUERTO = process.env.PORT || 3000;
 
 // ---- Conexión a la base de datos ----
