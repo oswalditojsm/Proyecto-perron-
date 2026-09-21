@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ubicación 📍</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest-usuario.json">
+    <meta name="theme-color" content="#ff6b81">
+    <link rel="apple-touch-icon" href="/iconos/usuario-apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi amor 💕">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="/websocket.js"></script>
+    <script src="/pwa.js"></script>
+    <script src="/push.js"></script>
+</head>
+<body>
+
+<nav class="menu">
+    <a href="/">Inicio</a>
+    <a href="/fotos.html">Fotos 📷</a>
+    <a href="/cita.html">Agendar cita 📅</a>
+    <a href="/ubicacion.html" class="activo">Ubicación 📍</a>
+    <a href="/chat.html">Chat 💬</a>
+    <a href="#" onclick="cerrarSesion(); return false;" style="opacity:0.7;">Salir</a>
+</nav>
+
+<div class="hearts"></div>
+
+<div class="card card-ubicacion">
+    <h1>Ubicación en vivo 📍</h1>
+
+    <div class="switch-compartir">
+        <label class="switch">
+            <input type="checkbox" id="toggleCompartir">
+            <span class="slider"></span>
+        </label>
+        <span id="textoToggle">Compartir mi ubicación en vivo</span>
+    </div>
+    <p class="aviso-ubicacion" id="avisoUbicacion"></p>
+
+    <div id="mapa"></div>
+
+    <div class="lista-ubicaciones" id="listaUbicaciones"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    async function cerrarSesion() {
+        await fetch("/api/logout-usuario", { method: "POST" });
+        window.location.href = "/acceso.html";
+    }
+
+    const toggle = document.getElementById("toggleCompartir");
+    const textoToggle = document.getElementById("textoToggle");
+    const aviso = document.getElementById("avisoUbicacion");
+    const listaUbicaciones = document.getElementById("listaUbicaciones");
+
+    let watchId = null;
+    let ultimoEnvio = 0;
+    const INTERVALO_MINIMO_MS = 8000; // no mandar más seguido que esto, para no gastar batería/datos
+
+    // marcadores[clave] = { marker, autor_tipo, autor_nombre, actualizado_en, compartiendo }
+    const marcadores = {};
+    const clave = (tipo, nombre) => `${tipo}|${nombre}`;
+    const coloresPorTipo = { admin: "#c81e3a", usuario: "#ff6b81" };
+
+    const mapa = L.map("mapa", { zoomControl: true }).setView([23.6345, -102.5528], 5); // centro de México por defecto
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap",
+        maxZoom: 19
+    }).addTo(mapa);
+
+    function iconoPara(tipo) {
+        const color = coloresPorTipo[tipo] || "#ff6b81";
+        return L.divIcon({
+            className: "marcador-persona",
+            html: `<div style="background:${color}"><span>💗</span></div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 34]
+        });
+    }
+
+    function haceCuanto(fechaTexto) {
+        const segundos = Math.max(0, Math.round((Date.now() - new Date(fechaTexto + "Z").getTime()) / 1000));
+        if (segundos < 60) return "hace un momento";
+        const minutos = Math.round(segundos / 60);
+        if (minutos < 60) return `hace ${minutos} min`;
+        const horas = Math.round(minutos / 60);
+        return `hace ${horas} h`;
+    }
+
+    function actualizarMarcador(u) {
+        const k = clave(u.autor_tipo, u.autor_nombre);
+        if (u.compartiendo === false) {
+            if (marcadores[k]) {
+                mapa.removeLayer(marcadores[k].marker);
+                delete marcadores[k];
+            }
+            renderLista();
+            return;
+        }
+
+        if (marcadores[k]) {
+            marcadores[k].marker.setLatLng([u.lat, u.lng]);
+            marcadores[k].actualizado_en = u.actualizado_en || new Date().toISOString();
+        } else {
+            const marker = L.marker([u.lat, u.lng], { icon: iconoPara(u.autor_tipo) }).addTo(mapa);
+            marker.bindPopup(u.autor_nombre);
+            marcadores[k] = {
+                marker,
+                autor_tipo: u.autor_tipo,
+                autor_nombre: u.autor_nombre,
+                actualizado_en: u.actualizado_en || new Date().toISOString()
+            };
+        }
+        renderLista();
+    }
+
+    function centrarEnTodos() {
+        const posiciones = Object.values(marcadores).map((m) => m.marker.getLatLng());
+        if (posiciones.length === 0) return;
+        if (posiciones.length === 1) {
+            mapa.setView(posiciones[0], 15);
+        } else {
+            mapa.fitBounds(L.latLngBounds(posiciones), { padding: [40, 40] });
+        }
+    }
+
+    function renderLista() {
+        const entradas = Object.values(marcadores);
+        if (entradas.length === 0) {
+            listaUbicaciones.innerHTML = '<p class="vacio">Nadie está compartiendo su ubicación ahorita.</p>';
+            return;
+        }
+        listaUbicaciones.innerHTML = entradas.map((m) => `
+            <div class="ubicacion-item">
+                <span class="punto" style="background:${coloresPorTipo[m.autor_tipo] || "#ff6b81"}"></span>
+                <span>${m.autor_nombre}</span>
+                <span class="hace">${haceCuanto(m.actualizado_en)}</span>
+            </div>
+        `).join("");
+    }
+
+    async function cargarUbicacionesIniciales() {
+        try {
+            const r = await fetch("/api/ubicacion");
+            const filas = await r.json();
+            filas.forEach((u) => {
+                if (u.compartiendo) actualizarMarcador({ ...u, compartiendo: true });
+            });
+            centrarEnTodos();
+        } catch (error) {
+            aviso.textContent = "No se pudieron cargar las ubicaciones 😢";
+        }
+        renderLista();
+    }
+
+    function activarCompartir() {
+        if (!("geolocation" in navigator)) {
+            aviso.textContent = "Tu navegador no soporta ubicación 😢";
+            toggle.checked = false;
+            return;
+        }
+
+        aviso.textContent = "Pidiendo permiso de ubicación...";
+        watchId = navigator.geolocation.watchPosition(
+            (posicion) => {
+                aviso.textContent = "";
+                const ahora = Date.now();
+                if (ahora - ultimoEnvio < INTERVALO_MINIMO_MS) return;
+                ultimoEnvio = ahora;
+                enviarUbicacion(posicion.coords.latitude, posicion.coords.longitude, posicion.coords.accuracy);
+            },
+            (error) => {
+                aviso.textContent = error.code === error.PERMISSION_DENIED
+                    ? "No diste permiso de ubicación, actívalo desde los ajustes del navegador."
+                    : "No se pudo obtener tu ubicación 😢";
+                toggle.checked = false;
+                detenerCompartir(false);
+            },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+        );
+        textoToggle.textContent = "Compartiendo mi ubicación en vivo 📍";
+    }
+
+    async function enviarUbicacion(lat, lng, precision) {
+        try {
+            await fetch("/api/ubicacion", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ lat, lng, precision })
+            });
+        } catch (error) {
+            // Si falla un envío puntual no pasa nada, el siguiente lo vuelve a intentar.
+        }
+    }
+
+    function detenerCompartir(avisarServidor = true) {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        textoToggle.textContent = "Compartir mi ubicación en vivo";
+        if (avisarServidor) {
+            fetch("/api/ubicacion/detener", { method: "POST" }).catch(() => {});
+        }
+    }
+
+    toggle.addEventListener("change", () => {
+        if (toggle.checked) activarCompartir();
+        else detenerCompartir();
+    });
+
+    // iOS (y en buena medida Android) suspenden la página en cuanto la
+    // mandas a segundo plano — no hay ubicación real "en segundo plano" en
+    // una web app. En vez de dejar un punto viejo engañando a la otra
+    // persona, avisamos "dejé de compartir" apenas se oculta la pantalla, y
+    // retomamos solos apenas regresas, sin que tengas que tocar el switch.
+    let pausadoPorFondo = false;
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+            if (watchId !== null) {
+                pausadoPorFondo = true;
+                fetch("/api/ubicacion/detener", { method: "POST" }).catch(() => {});
+            }
+        } else if (document.visibilityState === "visible" && pausadoPorFondo) {
+            pausadoPorFondo = false;
+            if (toggle.checked && watchId !== null) {
+                // Pedimos una posición fresca de una vez, sin esperar al
+                // siguiente disparo de watchPosition (que puede tardar).
+                navigator.geolocation.getCurrentPosition(
+                    (posicion) => {
+                        ultimoEnvio = Date.now();
+                        enviarUbicacion(posicion.coords.latitude, posicion.coords.longitude, posicion.coords.accuracy);
+                    },
+                    () => {},
+                    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+                );
+            }
+        }
+    });
+
+    // Si cierran o salen de la página mientras compartían, avisamos al
+    // servidor lo mejor que se pueda (esto no siempre llega, pero ayuda).
+    window.addEventListener("pagehide", () => {
+        if (watchId !== null) {
+            navigator.sendBeacon("/api/ubicacion/detener", new Blob([JSON.stringify({})], { type: "application/json" }));
+        }
+    });
+
+    conectarWebSocket((datos) => {
+        if (datos.tipo === "ubicacion") actualizarMarcador(datos);
+    });
+
+    cargarUbicacionesIniciales();
+
+    // Refresca los "hace X min" cada 15s sin tocar los marcadores.
+    setInterval(renderLista, 15000);
+
+    // Corazones flotantes (igual que el resto del sitio)
+    const heartsContainer = document.querySelector(".hearts");
+    const coloresCorazon = ["#ff6b81", "#ff4757", "#ff8fa3", "#ffb6c1"];
+    function createHeart() {
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        const tamano = Math.random() * 15 + 10;
+        const color = coloresCorazon[Math.floor(Math.random() * coloresCorazon.length)];
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.width = tamano + "px";
+        heart.style.height = tamano + "px";
+        heart.style.setProperty("--heart-color", color);
+        heart.style.animationDuration = (Math.random() * 3 + 3) + "s";
+        heartsContainer.appendChild(heart);
+        setTimeout(() => heart.remove(), 6000);
+    }
+    setInterval(createHeart, 400);
+</script>
+
+</body>
+</html>
