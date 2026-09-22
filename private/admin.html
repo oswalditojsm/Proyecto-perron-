@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrar 💌</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="/manifest-admin.json">
+    <meta name="theme-color" content="#c81e3a">
+    <link rel="apple-touch-icon" href="/iconos/admin-apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Admin 💕">
+    <script src="/websocket.js"></script>
+    <script src="/pwa.js"></script>
+    <script src="/push.js"></script>
+    <style>
+        /* Estilos propios del panel de admin (usa los mismos colores que --rosa, etc. del sitio) */
+        body {
+            all: unset;
+            display: block;
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px 60px;
+            background: var(--rosa-fondo);
+            color: var(--gris-texto);
+        }
+        h1 { color: var(--rosa-fuerte); }
+        a { color: var(--rosa-fuerte); }
+
+        .encabezado {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .salir {
+            background: none;
+            border: 1px solid var(--rosa);
+            color: var(--rosa-fuerte);
+            font-weight: bold;
+            border-radius: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+        .salir:hover { background: var(--rosa); color: white; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin: 20px 0 25px;
+            border-bottom: 2px solid #ffd7dd;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            font-size: 15px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-btn.activo {
+            color: var(--rosa-fuerte);
+            border-bottom: 3px solid var(--rosa-fuerte);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.activo { display: block; }
+
+        .nuevo {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        input[type="text"], input[type="url"], input[type="date"], input[type="password"] {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: var(--rosa);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { background: var(--rosa-fuerte); }
+
+        .item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            flex-wrap: wrap;
+        }
+        .item input {
+            flex: 1;
+            min-width: 120px;
+            border: none;
+            font-size: 15px;
+            padding: 6px;
+        }
+        .item img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .item .info { flex: 1; min-width: 150px; font-size: 14px; }
+        .item .info b { color: var(--rosa-fuerte); }
+
+        .borrar { background: #999; }
+        .borrar:hover { background: #666; }
+        .vacio { color: #999; font-size: 14px; }
+
+        .separador-o {
+            text-align: center;
+            font-size: 13px;
+            color: #999;
+            margin: 4px 0 12px;
+        }
+
+        .bloque-ajuste {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .bloque-ajuste h3 { margin-top: 0; font-size: 15px; color: var(--rosa-fuerte); }
+        .bloque-ajuste p.ayuda { font-size: 13px; color: #777; margin-top: -4px; }
+        .mensaje-estado { font-size: 13px; margin-top: 8px; min-height: 16px; }
+        .mensaje-estado.ok { color: #2ecc71; }
+        .mensaje-estado.error { color: var(--rosa-fuerte); }
+    </style>
+</head>
+<body>
+
+<div class="encabezado">
+    <div>
+        <h1>Panel de administración 💌</h1>
+        <p><a href="/">← Volver a la página principal</a></p>
+    </div>
+    <button class="salir" onclick="cerrarSesion()">Cerrar sesión</button>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn activo" data-tab="mensajes">Mensajes</button>
+    <button class="tab-btn" data-tab="fotos">Fotos</button>
+    <button class="tab-btn" data-tab="citas">Citas</button>
+    <button class="tab-btn" data-tab="usuarios">Usuarios</button>
+    <button class="tab-btn" data-tab="ajustes">Ajustes</button>
+</div>
+
+<div class="tab-panel activo" id="panel-mensajes">
+    <div class="nuevo">
+        <input type="text" id="textoNuevo" placeholder="Escribe un mensaje nuevo...">
+        <button onclick="agregarMensaje()">Agregar</button>
+    </div>
+    <div id="listaMensajes"></div>
+</div>
+
+<div class="tab-panel" id="panel-fotos">
+    <div class="bloque-ajuste">
+        <h3>Subir una foto desde tu computadora</h3>
+        <form id="formSubirFoto" class="nuevo">
+            <input type="file" id="archivoFoto" accept="image/*" required>
+            <input type="text" id="mensajeArchivoFoto" placeholder="Mensaje (opcional)">
+            <button type="submit">Subir</button>
+        </form>
+        <p class="mensaje-estado" id="estadoSubida"></p>
+    </div>
+
+    <div class="separador-o">— o pega el link de una imagen —</div>
+
+    <div class="nuevo">
+        <input type="url" id="urlFoto" placeholder="URL de la imagen (https://...)">
+        <input type="text" id="mensajeFoto" placeholder="Mensaje (opcional)">
+        <button onclick="agregarFoto()">Agregar</button>
+    </div>
+    <div id="listaFotos"></div>
+</div>
+
+<div class="tab-panel" id="panel-citas">
+    <p style="font-size:14px; color:#777;">Aquí ves las citas que ella ha ido agendando.</p>
+    <div id="listaCitas"></div>
+</div>
+
+<div class="tab-panel" id="panel-usuarios">
+    <p style="font-size:14px; color:#777;">Aprueba las cuentas nuevas para que puedan entrar al sitio. También puedes quitarle el acceso a alguien ya aprobado.</p>
+    <div id="listaUsuarios"></div>
+</div>
+
+<div class="tab-panel" id="panel-ajustes">
+    <div class="bloque-ajuste">
+        <h3>Días juntos 💕</h3>
+        <p class="ayuda">Elige la fecha en la que empezaron a salir. En la página principal se mostrará cuántos días llevan juntos.</p>
+        <div class="nuevo">
+            <input type="date" id="fechaInicio">
+            <button onclick="guardarFechaInicio()">Guardar</button>
+        </div>
+        <p class="mensaje-estado" id="estadoFecha"></p>
+    </div>
+
+    <div class="bloque-ajuste">
+        <h3>Imagen de fondo del sitio</h3>
+        <p class="ayuda">Pega el link de una foto de ustedes dos para usarla como fondo (déjalo vacío para usar el fondo por defecto).</p>
+        <div class="nuevo">
+            <input type="url" id="fondoUrl" placeholder="https://...">
+            <button onclick="guardarFondo()">Guardar</button>
+        </div>
+        <p class="mensaje-estado" id="estadoFondo"></p>
+    </div>
+
+    <div class="bloque-ajuste">
+        <h3>Cambiar la contraseña del panel</h3>
+        <div class="nuevo">
+            <input type="password" id="claveActual" placeholder="Contraseña actual">
+        </div>
+        <div class="nuevo">
+            <input type="password" id="claveNueva" placeholder="Nueva contraseña">
+            <button onclick="cambiarClave()">Cambiar</button>
+        </div>
+        <p class="mensaje-estado" id="estadoClave"></p>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("activo"));
+            document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("activo"));
+            btn.classList.add("activo");
+            document.getElementById("panel-" + btn.dataset.tab).classList.add("activo");
+        });
+    });
+
+    async function cerrarSesion() {
+        await fetch("/api/logout", { method: "POST" });
+        window.location.href = "/login.html";
+    }
+
+    // Si alguna petición responde 401 (sesión vencida), mandamos al login
+    function verificarSesion(respuesta) {
+        if (respuesta.status === 401) {
+            window.location.href = "/login.html";
+            return false;
+        }
+        return true;
+    }
+
+    // Evita refrescar un panel mientras estás escribiendo o editando algo en él
+    function hayEdicionEnCurso(idPanel) {
+        const panel = document.getElementById(idPanel);
+        const activo = document.activeElement;
+        return panel.contains(activo) && (activo.tagName === "INPUT" || activo.tagName === "TEXTAREA");
+    }
+
+    // ---- MENSAJES ----
+    async function cargarMensajes() {
+        const respuesta = await fetch("/api/mensajes");
+        if (!verificarSesion(respuesta)) return;
+        const mensajes = await respuesta.json();
+        const lista = document.getElementById("listaMensajes");
+        lista.innerHTML = "";
+
+        if (mensajes.length === 0) {
+            lista.innerHTML = '<p class="vacio">No hay mensajes todavía.</p>';
+            return;
+        }
+
+        mensajes.forEach((m) => {
+            const div = document.createElement("div");
+            div.classList.add("item");
+            div.innerHTML = `
+                <input type="text" value="${m.texto.replace(/"/g, "&quot;")}" data-id="${m.id}">
+                <button onclick="guardarMensaje(${m.id}, this)">Guardar</button>
+                <button class="borrar" onclick="borrarMensaje(${m.id})">Borrar</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    async function agregarMensaje() {
+        const input = document.getElementById("textoNuevo");
+        const texto = input.value.trim();
+        if (!texto) return;
+        await fetch("/api/mensajes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ texto })
+        });
+        input.value = "";
+        cargarMensajes();
+    }
+
+    async function guardarMensaje(id, boton) {
+        const input = boton.parentElement.querySelector("input");
+        const texto = input.value.trim();
+        if (!texto) return;
+        await fetch(`/api/mensajes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ texto })
+        });
+        boton.textContent = "✓ Guardado";
+        setTimeout(() => (boton.textContent = "Guardar"), 1200);
+    }
+
+    async function borrarMensaje(id) {
+        if (!confirm("¿Seguro que quieres borrar este mensaje?")) return;
+        await fetch(`/api/mensajes/${id}`, { method: "DELETE" });
+        cargarMensajes();
+    }
+
+    // ---- FOTOS ----
+    async function cargarFotos() {
+        const respuesta = await fetch("/api/fotos");
+        const fotos = await respuesta.json();
+        const lista = document.getElementById("listaFotos");
+        lista.innerHTML = "";
+
+        if (fotos.length === 0) {
+            lista.innerHTML = '<p class="vacio">No hay fotos todavía.</p>';
+            return;
+        }
+
+        fotos.forEach((f) => {
+            const div = document.createElement("div");
+            div.classList.add("item");
+            div.innerHTML = `
+                <img src="${f.url}" alt="foto">
+                <input type="text" value="${(f.mensaje || "").replace(/"/g, "&quot;")}" placeholder="(sin mensaje)" data-id="${f.id}">
+                <button onclick="guardarMensajeFoto(${f.id}, this)">Guardar</button>
+                <button class="borrar" onclick="borrarFoto(${f.id})">Borrar</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    async function agregarFoto() {
+        const urlInput = document.getElementById("urlFoto");
+        const mensajeInput = document.getElementById("mensajeFoto");
+        const url = urlInput.value.trim();
+        if (!url) return;
+
+        await fetch("/api/fotos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, mensaje: mensajeInput.value.trim() })
+        });
+
+        urlInput.value = "";
+        mensajeInput.value = "";
+        cargarFotos();
+    }
+
+    document.getElementById("formSubirFoto").addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        const archivoInput = document.getElementById("archivoFoto");
+        const mensajeInput = document.getElementById("mensajeArchivoFoto");
+        const estado = document.getElementById("estadoSubida");
+
+        if (!archivoInput.files[0]) return;
+
+        const formData = new FormData();
+        formData.append("foto", archivoInput.files[0]);
+        formData.append("mensaje", mensajeInput.value.trim());
+
+        estado.textContent = "Subiendo...";
+        estado.className = "mensaje-estado";
+
+        try {
+            const respuesta = await fetch("/api/fotos/subir", { method: "POST", body: formData });
+            const datos = await respuesta.json();
+            if (!respuesta.ok) throw new Error(datos.error || "Error al subir");
+
+            estado.textContent = "¡Foto subida! 💕";
+            estado.className = "mensaje-estado ok";
+            archivoInput.value = "";
+            mensajeInput.value = "";
+            cargarFotos();
+        } catch (error) {
+            estado.textContent = error.message;
+            estado.className = "mensaje-estado error";
+        }
+    });
+
+    async function guardarMensajeFoto(id, boton) {
+        const input = boton.parentElement.querySelector("input");
+        await fetch(`/api/fotos/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mensaje: input.value.trim() })
+        });
+        boton.textContent = "✓ Guardado";
+        setTimeout(() => (boton.textContent = "Guardar"), 1200);
+    }
+
+    async function borrarFoto(id) {
+        if (!confirm("¿Seguro que quieres borrar esta foto?")) return;
+        await fetch(`/api/fotos/${id}`, { method: "DELETE" });
+        cargarFotos();
+    }
+
+    // ---- CITAS ----
+    async function cargarCitas() {
+        const respuesta = await fetch("/api/citas");
+        if (!verificarSesion(respuesta)) return;
+        const citas = await respuesta.json();
+        const lista = document.getElementById("listaCitas");
+        lista.innerHTML = "";
+
+        if (citas.length === 0) {
+            lista.innerHTML = '<p class="vacio">Todavía no ha agendado ninguna cita.</p>';
+            return;
+        }
+
+        citas.forEach((c) => {
+            const div = document.createElement("div");
+            div.classList.add("item");
+            div.innerHTML = `
+                <span class="info"><b>${c.fecha} - ${c.hora}</b><br>${c.mensaje || "<i>(sin detalles)</i>"}</span>
+                <button class="borrar" onclick="borrarCita(${c.id})">Borrar</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    async function borrarCita(id) {
+        if (!confirm("¿Seguro que quieres borrar esta cita?")) return;
+        await fetch(`/api/citas/${id}`, { method: "DELETE" });
+        cargarCitas();
+    }
+
+    // ---- USUARIOS ----
+    async function cargarUsuarios() {
+        const respuesta = await fetch("/api/usuarios");
+        if (!verificarSesion(respuesta)) return;
+        const usuarios = await respuesta.json();
+        const lista = document.getElementById("listaUsuarios");
+        lista.innerHTML = "";
+
+        if (usuarios.length === 0) {
+            lista.innerHTML = '<p class="vacio">Todavía no hay registros.</p>';
+            return;
+        }
+
+        usuarios.forEach((u) => {
+            const div = document.createElement("div");
+            div.classList.add("item");
+            const etiqueta = u.estado === "aprobado"
+                ? '<span style="color:#2ecc71; font-weight:bold;">Aprobado ✓</span>'
+                : '<span style="color:#e67e22; font-weight:bold;">Pendiente</span>';
+
+            div.innerHTML = `
+                <span class="info"><b>${u.usuario}</b><br>${etiqueta}</span>
+                ${u.estado !== "aprobado" ? `<button onclick="aprobarUsuario(${u.id})">Aprobar</button>` : ""}
+                <button class="borrar" onclick="borrarUsuario(${u.id})">${u.estado === "aprobado" ? "Quitar acceso" : "Rechazar"}</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    async function aprobarUsuario(id) {
+        await fetch(`/api/usuarios/${id}/aprobar`, { method: "POST" });
+        cargarUsuarios();
+    }
+
+    async function borrarUsuario(id) {
+        if (!confirm("¿Seguro?")) return;
+        await fetch(`/api/usuarios/${id}`, { method: "DELETE" });
+        cargarUsuarios();
+    }
+
+    // ---- AJUSTES ----
+    async function cargarAjustes() {
+        const respuesta = await fetch("/api/config");
+        const config = await respuesta.json();
+        if (config.fecha_inicio) document.getElementById("fechaInicio").value = config.fecha_inicio;
+        if (config.fondo_url) document.getElementById("fondoUrl").value = config.fondo_url;
+    }
+
+    function mostrarEstado(id, texto, ok) {
+        const el = document.getElementById(id);
+        el.textContent = texto;
+        el.className = "mensaje-estado " + (ok ? "ok" : "error");
+        setTimeout(() => { el.textContent = ""; }, 2500);
+    }
+
+    async function guardarFechaInicio() {
+        const valor = document.getElementById("fechaInicio").value;
+        const respuesta = await fetch("/api/ajustes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fecha_inicio: valor })
+        });
+        mostrarEstado("estadoFecha", respuesta.ok ? "¡Guardado! 💕" : "Algo salió mal", respuesta.ok);
+    }
+
+    async function guardarFondo() {
+        const valor = document.getElementById("fondoUrl").value.trim();
+        const respuesta = await fetch("/api/ajustes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fondo_url: valor })
+        });
+        mostrarEstado("estadoFondo", respuesta.ok ? "¡Guardado! 💕" : "Algo salió mal", respuesta.ok);
+    }
+
+    async function cambiarClave() {
+        const actual = document.getElementById("claveActual").value;
+        const nueva = document.getElementById("claveNueva").value;
+        if (!actual || !nueva) {
+            mostrarEstado("estadoClave", "Completa ambos campos", false);
+            return;
+        }
+        const respuesta = await fetch("/api/cambiar-clave", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ actual, nueva })
+        });
+        const datos = await respuesta.json().catch(() => ({}));
+        if (respuesta.ok) {
+            document.getElementById("claveActual").value = "";
+            document.getElementById("claveNueva").value = "";
+            mostrarEstado("estadoClave", "¡Contraseña cambiada! 💕", true);
+        } else {
+            mostrarEstado("estadoClave", datos.error || "Algo salió mal", false);
+        }
+    }
+
+    cargarMensajes();
+    cargarFotos();
+    cargarCitas();
+    cargarUsuarios();
+    cargarAjustes();
+
+    // ---- Auto-refresco ----
+    // Antes esto dependía de revisar cada 15 segundos "por si algo cambió".
+    // Ahora el servidor avisa por WebSocket en el momento exacto en que algo
+    // cambia (ej. ella agenda una cita), así que el panel se actualiza casi
+    // al instante. Si estás escribiendo en ese momento en un panel, ese panel
+    // en particular se salta esa ronda para no interrumpirte.
+    function refrescarSegunTipo(tipo) {
+        if (tipo === "mensajes" && !hayEdicionEnCurso("panel-mensajes")) cargarMensajes();
+        if (tipo === "fotos" && !hayEdicionEnCurso("panel-fotos")) cargarFotos();
+        if (tipo === "citas" && !hayEdicionEnCurso("panel-citas")) cargarCitas();
+        if (tipo === "usuarios" && !hayEdicionEnCurso("panel-usuarios")) cargarUsuarios();
+        if (tipo === "ajustes") cargarAjustes();
+    }
+
+    conectarWebSocket((datos) => refrescarSegunTipo(datos.tipo));
+
+    // Respaldo: si por lo que sea el WebSocket se cae y tarda en reconectar,
+    // esto vuelve a pedir todo cada 60 segundos como red de seguridad.
+    setInterval(() => {
+        ["mensajes", "fotos", "citas", "usuarios"].forEach(refrescarSegunTipo);
+    }, 60000);
+</script>
+
+</body>
+</html>

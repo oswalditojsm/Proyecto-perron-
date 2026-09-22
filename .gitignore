@@ -1,0 +1,16 @@
+# Dependencias (se reinstalan con npm install, no hace falta subirlas)
+node_modules/
+
+# Secretos y configuración local — NUNCA debe subirse a GitHub
+.env
+
+# Archivos que genera el sistema operativo
+.DS_Store
+Thumbs.db
+
+# Base de datos local (si corres sin Turso, solo local)
+mensajes.db
+*.db
+
+# Logs
+*.log
